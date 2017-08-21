@@ -183,9 +183,9 @@ static bool ValidateSessionDelegate(id<SonicSessionDelegate> aWebDelegate)
     if (!existSession) {
         //初始化该url的请求 aWebDelegate是打开webView的控制器
         //一个url对应一个session对应一个cache
-        existSession = [[SonicSession alloc] initWithUrl:url withWebDelegate:aWebDelegate];
         NSURL *cUrl = [NSURL URLWithString:url];
-        existSession.serverIP = [self.ipDomains objectForKey:cUrl.host];
+        NSString *serverIP = [self.ipDomains objectForKey:cUrl.host]?:@"";
+        existSession = [[SonicSession alloc] initWithUrl:url withServerIP:serverIP withWebDelegate:aWebDelegate];
         //把该会话加入到self.tasks中
         [existSession setCompletionCallback:^(NSString *sessionID){
             [existSession cancel];

@@ -25,6 +25,7 @@
     if (self = [super init]) {
         //记录现在的时候，在页面加载完成后用此计算出打开页面的时间
         self.clickTime = (long long)([[NSDate date]timeIntervalSince1970]);
+        [[SonicClient sharedClient] addDomain:@"localhost" withIpAddress:@"127.0.0.1"];
         //使用sonic链接创建一个会话，在此sonic已发出请求，可以查看源码
         [[SonicClient sharedClient] createSessionWithUrl:@"http://localhost/sonic-php/sample/index.php" withWebDelegate:self];
     }
