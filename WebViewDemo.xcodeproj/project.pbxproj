@@ -13,6 +13,7 @@
 		0404A1221F43F6AE009D1B5B /* MainViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0404A1201F43F6AE009D1B5B /* MainViewController.xib */; };
 		0404A1261F43F808009D1B5B /* OldWebViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 0404A1241F43F808009D1B5B /* OldWebViewController.m */; };
 		0404A1271F43F808009D1B5B /* OldWebViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 0404A1251F43F808009D1B5B /* OldWebViewController.xib */; };
+		042691651F4BBE6A00B41EB8 /* CustemSonicConnection.m in Sources */ = {isa = PBXBuildFile; fileRef = 042691641F4BBE6A00B41EB8 /* CustemSonicConnection.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		044394AD1F1CDB9A0043BEA1 /* main.m in Sources */ = {isa = PBXBuildFile; fileRef = 044394AC1F1CDB9A0043BEA1 /* main.m */; };
 		044394B01F1CDB9A0043BEA1 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 044394AF1F1CDB9A0043BEA1 /* AppDelegate.m */; };
 		044394B81F1CDB9A0043BEA1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 044394B71F1CDB9A0043BEA1 /* Assets.xcassets */; };
@@ -38,6 +39,8 @@
 		0404A1231F43F808009D1B5B /* OldWebViewController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = OldWebViewController.h; sourceTree = "<group>"; };
 		0404A1241F43F808009D1B5B /* OldWebViewController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = OldWebViewController.m; sourceTree = "<group>"; };
 		0404A1251F43F808009D1B5B /* OldWebViewController.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = OldWebViewController.xib; sourceTree = "<group>"; };
+		042691631F4BBE6A00B41EB8 /* CustemSonicConnection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = CustemSonicConnection.h; path = ../CustemSonicConnection.h; sourceTree = "<group>"; };
+		042691641F4BBE6A00B41EB8 /* CustemSonicConnection.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = CustemSonicConnection.m; path = ../CustemSonicConnection.m; sourceTree = "<group>"; };
 		044394A81F1CDB9A0043BEA1 /* WebViewDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = WebViewDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		044394AC1F1CDB9A0043BEA1 /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		044394AE1F1CDB9A0043BEA1 /* AppDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = AppDelegate.h; sourceTree = "<group>"; };
@@ -143,6 +146,8 @@
 				049B0C561F47E0EC000EC991 /* SonicClient.m */,
 				049B0C571F47E0EC000EC991 /* SonicConnection.h */,
 				049B0C581F47E0EC000EC991 /* SonicConnection.m */,
+				042691631F4BBE6A00B41EB8 /* CustemSonicConnection.h */,
+				042691641F4BBE6A00B41EB8 /* CustemSonicConnection.m */,
 				049B0C591F47E0EC000EC991 /* SonicConstants.h */,
 				049B0C5A1F47E0EC000EC991 /* SonicProtocol.h */,
 				049B0C5B1F47E0EC000EC991 /* SonicSession.h */,
@@ -309,6 +314,7 @@
 				0404A1261F43F808009D1B5B /* OldWebViewController.m in Sources */,
 				0404A1211F43F6AE009D1B5B /* MainViewController.m in Sources */,
 				049B0C621F47E0EC000EC991 /* SonicCache.m in Sources */,
+				042691651F4BBE6A00B41EB8 /* CustemSonicConnection.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

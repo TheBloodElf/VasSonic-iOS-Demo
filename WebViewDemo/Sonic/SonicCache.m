@@ -144,15 +144,12 @@ typedef NS_ENUM(NSUInteger, SonicCacheType) {
         [self.lock unlock];
     });
 }
-
-- (void)removeCacheBySessionID:(NSString *)sessionID
-{
+- (void)removeCacheBySessionID:(NSString *)sessionID {
     //we need clear or setup file in file queue
     dealInFileQueue(^{
         NSString *fileDir = [self sessionSubCacheDir:sessionID];
         [SonicFileManager removeItemAtPath:fileDir error:nil];
     });
-    
     //we need clear or create memory cache in sonic queue
     dispatchToSonicSessionQueue(^{
         [self.lock lock];
@@ -197,72 +194,65 @@ typedef NS_ENUM(NSUInteger, SonicCacheType) {
         self.offlineCacheTimeCfg = [NSMutableDictionary dictionaryWithDictionary:cacheDict];
     }
 }
-
-- (void)saveServerDisabeSonicTimeNow:(NSString *)sessionID
-{
+//该客户端6小时内不能使用sonic访问url
+- (void)saveServerDisabeSonicTimeNow:(NSString *)sessionID {
+    //删除内存缓存中对于该会话id的数据
     [self removeCacheBySessionID:sessionID];
-    
     NSNumber *timeNow = @([[NSDate date] timeIntervalSince1970]);
-    
+    //记录该会话id开始限制访问的时间
     [self.offlineCacheTimeCfg setObject:timeNow forKey:sessionID];
-    
     NSString *cfgPath = [_rootCachePath stringByAppendingPathComponent:SonicCacheOfflineDisableList];
-
     dealInFileQueue(^{
+        //把限制写入文件
         [self.offlineCacheTimeCfg writeToFile:cfgPath atomically:YES];
     });
 }
-
-- (void)removeServerDisableSonic:(NSString *)sessionID
-{
-    if (![self.offlineCacheTimeCfg objectForKey:sessionID]) {
+//删除该客户端6小时内不能使用sonic访问url
+- (void)removeServerDisableSonic:(NSString *)sessionID {
+    //传入了错误的数据，直接返回
+    if (![self.offlineCacheTimeCfg objectForKey:sessionID])
         return;
-    }
-    
+    //删除限制
     [self.offlineCacheTimeCfg removeObjectForKey:sessionID];
-    
     NSString *cfgPath = [_rootCachePath stringByAppendingPathComponent:SonicCacheOfflineDisableList];
-
     dealInFileQueue(^{
+        //写入文件
         [self.offlineCacheTimeCfg writeToFile:cfgPath atomically:YES];
     });
 }
 
 #pragma mark - Memory Cache
-
-- (SonicCacheItem *)cacheForSession:(NSString *)sessionID
-{
+//把该sessionID对应的cacheItem放到内存缓存中
+- (SonicCacheItem *)cacheForSession:(NSString *)sessionID {
     SonicCacheItem *cacheItem = nil;
-    
     [self.lock lock];
-    
+    //注意，内存缓存大小默认值只有3个
     cacheItem = self.memoryCache[sessionID];
-    //如果没有该会话的缓存数据 我们就初始化一个
+    //如果内存缓存中没有该会话的缓存数据 我们就初始化一个
     if (!cacheItem) {
         cacheItem = [[SonicCacheItem alloc] initWithSessionID:sessionID];
+        //内存缓存创建该item
         [self memoryCacheItem:cacheItem];
+        //如果内存缓存中没有该item，但是本地文件有对应的文件，就拿来填充该cacheItem
         [self setupCacheItemFromFile:cacheItem];
         [cacheItem release];
     }
-    
     [self.lock unlock];
-    
     return cacheItem;
 }
-
-- (void)memoryCacheItem:(SonicCacheItem *)cacheItem
-{
+- (void)memoryCacheItem:(SonicCacheItem *)cacheItem {
+    //保存到内存缓存中
     [self.memoryCache setObject:cacheItem forKey:cacheItem.sessionID];
-
+    //找到该cache对应的下标
     NSUInteger index = [self.recentlyUsedKey indexOfObject:cacheItem.sessionID];
-    
     if (index != NSNotFound) {
         [self.recentlyUsedKey removeObjectAtIndex:index];
     }
-    
+    //并把该cache放到第一个，用来记录最近使用的cache
     [self.recentlyUsedKey insertObject:cacheItem.sessionID atIndex:0];
-    
+    //如果需要缓存的cache个数大于限制
     if (self.recentlyUsedKey.count > self.maxCacheCount) {
+        //我们就去掉最后一个，也就是最先加入的
         NSString *lastUsedKey = [self.recentlyUsedKey lastObject];
         [self.memoryCache removeObjectForKey:lastUsedKey];
         [self.recentlyUsedKey removeObject:lastUsedKey];
@@ -270,36 +260,34 @@ typedef NS_ENUM(NSUInteger, SonicCacheType) {
 }
 
 #pragma mark - 接口
-
-- (SonicCacheItem *)  saveFirstWithHtmlData:(NSData *)htmlData
+//保存该url服务器返回的请求数据到本地
+- (SonicCacheItem *) saveFirstWithHtmlData:(NSData *)htmlData
         withResponseHeaders:(NSDictionary *)headers
-            withUrl:(NSString *)url
-{
+            withUrl:(NSString *)url {
+    //得到该url对应的会话id
     NSString *sessionID = sonicSessionID(url);
-    
     if (!htmlData || headers.count == 0 || sessionID.length == 0) {
         return nil;
     }
-    
+    //把该sessionID对应的cacheItem放到内存缓存中
     SonicCacheItem *cacheItem = [self cacheForSession:sessionID];
-    
     cacheItem.htmlData = htmlData;
-    
     NSString *htmlString = [[[NSString alloc]initWithData:htmlData encoding:NSUTF8StringEncoding] autorelease];
+    //从html字符串中中抽离出模版、数据
     NSDictionary *splitResult = [self splitTemplateAndDataFromHtmlData:htmlString];
-    
-    if (!splitResult) {
+    //如果抽离不出模版，说明出现了错误，结束方法
+    if (!splitResult)
         return nil;
-    }
-    
     cacheItem.templateString = splitResult[@"temp"];
     cacheItem.dynamicData = splitResult[@"data"];
+    //从请求返回头部得到配置部分
     NSMutableDictionary *config = [NSMutableDictionary dictionaryWithDictionary:[self createConfigFromResponseHeaders:headers]];
+    //得到html内容的sha码
     NSString *sha1 = getDataSha1(htmlData);
     [config setObject:sha1 forKey:kSonicSha1];
     cacheItem.config = config;
-    
     dealInFileQueue(^{
+        //写入文件
         [self saveHtmlData:htmlData withConfig:config withTemplate:splitResult[@"temp"] dynamicData:splitResult[@"data"] withSessionID:sessionID isUpdate:NO];
     });
     
@@ -373,7 +361,7 @@ typedef NS_ENUM(NSUInteger, SonicCacheType) {
                               };
     return cfgDict;
 }
-
+//从html字符串中中抽离出模版文件 你自己自己打印一下结果
 - (NSDictionary *)splitTemplateAndDataFromHtmlData:(NSString *)html
 {
     //using sonicdiff tag to split the HTML to template and dynamic data.
@@ -461,23 +449,24 @@ void dealInFileQueue(dispatch_block_t block)
 {
     return [[[NSString alloc]initWithData:[NSData dataWithContentsOfFile:[self filePathWithType:SonicCacheTypeTemplate sessionID:sessionID]] encoding:NSUTF8StringEncoding]autorelease];
 }
-
-- (void)setupCacheItemFromFile:(SonicCacheItem *)item
-{
-    //检查该item是否有 html data config template四个文件  如果有有任何一个文件就全部删除
+//给该item设置缓存文件
+- (void)setupCacheItemFromFile:(SonicCacheItem *)item {
+    //检查该item是否有html data config template四个文件
+    //如果有任何一个文件不存在，就删除该item相关所有文件
     if (![self isAllCacheExist:item.sessionID]) {
         [self removeFileCacheOnly:item.sessionID];
         return;
     }
-    //创建该item的html data config template四个文件
+    //如果四个文件都存在，就取出里面的数据给item赋值
     NSData *htmlData = [NSData dataWithContentsOfFile:[self filePathWithType:SonicCacheTypeHtml sessionID:item.sessionID]];
     NSDictionary *config = [NSDictionary dictionaryWithContentsOfFile:[self filePathWithType:SonicCacheTypeConfig sessionID:item.sessionID]];
-    
     NSString *sha1 = config[kSonicSha1];
     NSString *htmlSha1 = getDataSha1(htmlData);
+    //如果检测出来内容的sha值不是cfg中保存的值，说明数据发生了错误，需要删除文件
     if (![sha1 isEqualToString:htmlSha1]) {
         [self removeFileCacheOnly:item.sessionID];
     }else{
+        //如果所有数据正常，就赋值给item
         item.htmlData = htmlData;
         item.config = config;
         //read templateString and dynamicData where need
@@ -500,15 +489,13 @@ void dealInFileQueue(dispatch_block_t block)
     if(parent.length == 0 || subPath.length == 0){
         return nil;
     }
-    
     BOOL isDir = YES;
     NSString *path = [parent stringByAppendingPathComponent:subPath];
     if (![SonicFileManager fileExistsAtPath:path isDirectory:&isDir]) {
         NSError *error = nil;
         [SonicFileManager createDirectoryAtPath:path withIntermediateDirectories:YES attributes:nil error:&error];
-        if (error) {
+        if (error)
             return nil;
-        }
     }
     return path;
 }
@@ -517,20 +504,19 @@ void dealInFileQueue(dispatch_block_t block)
 {
     return [self createDirectoryIfNotExist:_rootCachePath withSubPath:sessionID];
 }
-
-- (BOOL)isAllCacheExist:(NSString *)sessionID
-{
+//坚持该sessionID对应的4个缓存文件是否都存在
+- (BOOL)isAllCacheExist:(NSString *)sessionID {
     NSUInteger checkList[4] = {
         SonicCacheTypeConfig,
         SonicCacheTypeHtml,
         SonicCacheTypeTemplate,
         SonicCacheTypeData
     };
-    
     for (int i=0; i<4; i++) {
+        //如果有任何类型文件不存在存在 返回NO
         if (![self checkCacheTypeExist:checkList[i] sessionID:sessionID]) { return NO; }
     }
-    
+    //如果所有的缓存文件都存在，返回YES
     return YES;
 }
 
@@ -544,10 +530,8 @@ void dealInFileQueue(dispatch_block_t block)
     return cfgDict[kSonicLocalRefreshTime];
 }
 
-- (BOOL)checkCacheTypeExist:(SonicCacheType)type sessionID:(NSString *)sessionID
-{
+- (BOOL)checkCacheTypeExist:(SonicCacheType)type sessionID:(NSString *)sessionID {
     NSString *cachePath = [self filePathWithType:type sessionID:sessionID];
-    
     return [SonicFileManager fileExistsAtPath:cachePath];
 }
 
@@ -566,11 +550,12 @@ void dealInFileQueue(dispatch_block_t block)
     NSString *cacheFileName = [sessionID stringByAppendingPathExtension:extMap[@(cacheType)]];
     return [fileDir stringByAppendingPathComponent:cacheFileName];
 }
-
-- (void)removeFileCacheOnly:(NSString *)sessionID
-{
+//删除该会话ID的缓存文件
+- (void)removeFileCacheOnly:(NSString *)sessionID {
     dealInFileQueue(^{
+        //得到该会话ID的文件目录
         NSString *fileDir = [self sessionSubCacheDir:sessionID];
+        //删除该会话ID的文件目录
         [SonicFileManager removeItemAtPath:fileDir error:nil];
     });
 }

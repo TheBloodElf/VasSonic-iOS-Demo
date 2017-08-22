@@ -8,6 +8,7 @@
 
 #import "WebViewController.h"
 #import "Sonic.h"
+#import "CustemSonicConnection.h"
 #import <WebViewJavascriptBridge/WebViewJavascriptBridge.h>
 
 @interface WebViewController ()<SonicSessionDelegate,UIWebViewDelegate> {
@@ -25,7 +26,10 @@
     if (self = [super init]) {
         //记录现在的时候，在页面加载完成后用此计算出打开页面的时间
         self.clickTime = (long long)([[NSDate date]timeIntervalSince1970]);
+        //添加域名-地址对应关系
         [[SonicClient sharedClient] addDomain:@"localhost" withIpAddress:@"127.0.0.1"];
+        //注册自己的请求连接方式
+//        [SonicSession registerSonicConnection:[CustemSonicConnection class]];
         //使用sonic链接创建一个会话，在此sonic已发出请求，可以查看源码
         [[SonicClient sharedClient] createSessionWithUrl:@"http://localhost/sonic-php/sample/index.php" withWebDelegate:self];
     }
@@ -37,17 +41,22 @@
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:[NSURL URLWithString:@"http://localhost/sonic-php/sample/index.php"]];
     [WebViewJavascriptBridge enableLogging];
     webViewJavascriptBridge = [WebViewJavascriptBridge bridgeForWebView:_webView];
-    __weak typeof(self) weakSelf = self;
-    [webViewJavascriptBridge registerHandler:@"getDiffData" handler:^(id data, WVJBResponseCallback responseCallback) {
-        __strong typeof(self) strongSelf = weakSelf;
-        [strongSelf getDiffData];
-    }];
     //为什么是nil 问题就出现在这里
     if ([[SonicClient sharedClient] sessionWithWebDelegate:self]) {
         [self.webView loadRequest:sonicWebRequest(request)];
     }else{
         [self.webView loadRequest:request];
     }
+    __weak typeof(webViewJavascriptBridge) weakWebViewJavascriptBridge = webViewJavascriptBridge;
+    //简单动态数据变化，传给前端
+    [[SonicClient sharedClient] sonicUpdateDiffDataByWebDelegate:self completion:^(NSDictionary *result) {
+        __strong typeof(webViewJavascriptBridge) strongWebViewJavascriptBridge = weakWebViewJavascriptBridge;
+        if (result) {
+            NSData *json = [NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil];
+            NSString *jsonStr = [[NSString alloc]initWithData:json encoding:NSUTF8StringEncoding];
+            [strongWebViewJavascriptBridge callHandler:@"getDiffDataCallback" data:jsonStr];
+        }
+    }];
 }
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
@@ -64,17 +73,6 @@
 }
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
     self.title = self.title ?: [NSString stringWithFormat:@"%.2f秒\n",([NSDate new].timeIntervalSince1970 - self.clickTime)];
-}
-- (void)getDiffData {
-    __weak typeof(webViewJavascriptBridge) weakWebViewJavascriptBridge = webViewJavascriptBridge;
-    [[SonicClient sharedClient] sonicUpdateDiffDataByWebDelegate:self completion:^(NSDictionary *result) {
-        __strong typeof(webViewJavascriptBridge) strongWebViewJavascriptBridge = weakWebViewJavascriptBridge;
-        if (result) {
-            NSData *json = [NSJSONSerialization dataWithJSONObject:result options:NSJSONWritingPrettyPrinted error:nil];
-            NSString *jsonStr = [[NSString alloc]initWithData:json encoding:NSUTF8StringEncoding];
-            [strongWebViewJavascriptBridge callHandler:@"getDiffDataCallback" data:jsonStr];
-        }
-    }];
 }
 #pragma mark - Sonic Session Delegate
 /*

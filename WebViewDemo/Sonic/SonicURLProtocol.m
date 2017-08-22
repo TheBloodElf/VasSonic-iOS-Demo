@@ -59,9 +59,9 @@
     NSThread *currentThread = [NSThread currentThread];
     //得到当前会话的id
     NSString *sessionID = [self.request valueForHTTPHeaderField:SonicHeaderKeySessionID];
-    //用SonicClient注册此会话id请求  用Sonic自己内部请求得到的数据来作为此请求的返回数据
-    //看到这里，我们就应该去看看Sonic内部怎么请求的了
+    //让SonicClient接管此请求
     [[SonicClient sharedClient] registerURLProtocolCallBackWithSessionID:sessionID completion:^(NSDictionary *param) {
+        //SonicClient请求返回的数据通过callClientActionWithParams处理
         [self performSelector:@selector(callClientActionWithParams:) onThread:currentThread withObject:param waitUntilDone:NO];
     }];
 }

@@ -189,7 +189,7 @@ static NSLock *sonicRequestClassLock;
         //如果控制器有设置cookies，在这里同步添加到请求
         [self syncCookies];
     });
-
+    //异步执行请求
     [self requestStartInOperation];
 }
 
@@ -210,15 +210,12 @@ static NSLock *sonicRequestClassLock;
     
     [self addCustomRequestHeaders:cookieHeader];
 }
-
-- (Class)canCustomRequest
-{
+//用户如果有自定义的请求连接方式（比如：用户继承SonicConnection，用AFNetWorking发起请求等）
+- (Class)canCustomRequest {
     Class findDestClass = nil;
-    
     for (NSInteger index = sonicRequestClassArray.count - 1; index >= 0; index--) {
-        
         Class itemClass = sonicRequestClassArray[index];
-        
+        //构造一个此类的canInitWithRequest方法，调用
         NSMethodSignature *sign = [itemClass methodSignatureForSelector:@selector(canInitWithRequest:)];
         NSInvocation *invoke = [NSInvocation invocationWithMethodSignature:sign];
         invoke.target = itemClass;
@@ -226,55 +223,48 @@ static NSLock *sonicRequestClassLock;
         [invoke setArgument:&argRequest atIndex:2];
         invoke.selector = @selector(canInitWithRequest:);
         [invoke invoke];
-        
         BOOL canCustomRequest;
+        //如果有能处理该requeset的（用户继承SonicConnection，canInitWithRequest返回YES）
         [invoke getReturnValue:&canCustomRequest];
-        
         if (canCustomRequest) {
             findDestClass = itemClass;
             break;
         }
     }
-    
     return findDestClass;
 }
-
-- (void)requestStartInOperation
-{
+- (void)requestStartInOperation {
     //有没有自定义的请求，没有就使用默认的
     Class customRequest = [self canCustomRequest];
     if (!customRequest) {
         //If there no custom request ,then use the default
         customRequest = [SonicConnection class];
     }
-    //用request初始化连接请求
+    //初始化请求类
     SonicConnection *cRequest = [[customRequest alloc]initWithRequest:self.request];
+    //把请求类保存到自己mCustomConnection属性中
     self.mCustomConnection = cRequest;
     [cRequest release];
+    //设置请求类发起请求的各个阶段需要通知到自己处理
+    //然后处理结果会通过self.protocolCallBack给到SonicURLProtocol
     self.mCustomConnection.session = self;
     //开始加载请求
     [self.mCustomConnection startLoading];
 }
-
-- (void)addCustomRequestHeaders:(NSDictionary *)requestHeaders
-{
+- (void)addCustomRequestHeaders:(NSDictionary *)requestHeaders {
     if (requestHeaders.count == 0) {
         return;
     }
-    
     NSMutableDictionary *mReqHeaders = [NSMutableDictionary dictionaryWithDictionary:self.request.allHTTPHeaderFields];
     [mReqHeaders addEntriesFromDictionary:requestHeaders];
     self.request.allHTTPHeaderFields = mReqHeaders;
 }
-
-- (void)setupConfigRequestHeaders
-{
+- (void)setupConfigRequestHeaders {
     NSMutableDictionary *mCfgDict = [NSMutableDictionary dictionaryWithDictionary:self.request.allHTTPHeaderFields];
     NSDictionary *cfgDict = [self getRequestParamsFromConfigHeaders];
     if (cfgDict) {
         [mCfgDict addEntriesFromDictionary:cfgDict];
     }
-    
     [mCfgDict setObject:@"true" forKey:@"accept-diff"];
     [mCfgDict setObject:@"true" forKey:@"no-Chunked"];
     [mCfgDict setObject:@"GET" forKey:@"method"];
@@ -285,21 +275,16 @@ static NSLock *sonicRequestClassLock;
     [mCfgDict setObject:SonicHeaderValueSonicLoad forKey:SonicHeaderKeyLoadType];
     NSString *userAgent = [SonicClient sharedClient].userAgent.length > 0? [SonicClient sharedClient].userAgent:[[SonicClient sharedClient] sonicDefaultUserAgent];
     [mCfgDict setObject:userAgent forKey:@"User-Agent"];
-
     NSURL *cUrl = [NSURL URLWithString:self.url];
-
     if (self.serverIP.length > 0) {
         NSString *host = [cUrl.scheme isEqualToString:@"https"]? [NSString stringWithFormat:@"%@:443",self.serverIP]:[NSString stringWithFormat:@"%@:80",self.serverIP];
         NSString *newUrl = [self.url stringByReplacingOccurrencesOfString:cUrl.host withString:host];
         cUrl = [NSURL URLWithString:newUrl];
         [mCfgDict setObject:cUrl.host forKey:@"Host"];
     }
-    
     [self.request setAllHTTPHeaderFields:mCfgDict];
 }
-
-- (NSDictionary *)getRequestParamsFromConfigHeaders
-{
+- (NSDictionary *)getRequestParamsFromConfigHeaders {
     NSDictionary *cfgDict = self.cacheConfigHeaders;
     NSMutableDictionary *mCfgDict = [NSMutableDictionary dictionary];
     
@@ -331,63 +316,50 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
         [[SonicSession sonicSessionQueue] addOperation:blkOp];
     }
 }
-//SonicConnection的请求会走这里
-- (void)session:(SonicSession *)session didRecieveResponse:(NSHTTPURLResponse *)response
-{
+//请求收到响应
+- (void)session:(SonicSession *)session didRecieveResponse:(NSHTTPURLResponse *)response {
     dispatch_block_t opBlock = ^{
-        
         self.response = response;
         self.cacheResponseHeaders = response.allHeaderFields;
-        
-        if (self.isFirstLoad) {
+        if (self.isFirstLoad)
             [self firstLoadRecieveResponse:response];
-        }
     };
     dispatchToSonicSessionQueue(opBlock);
 }
-//SonicConnection的请求会走这里
-- (void)session:(SonicSession *)session didLoadData:(NSData *)data
-{
+//请求收到数据
+- (void)session:(SonicSession *)session didLoadData:(NSData *)data {
     dispatch_block_t opBlock = ^{
-        
-        if (!self.responseData) {
+        if (!self.responseData)
             self.responseData = [NSMutableData data];
-        }
-        
         if (data) {
-            
             NSData *copyData = [data copy];
             [self.responseData appendData:data];
             [copyData release];
-            
-            if (self.isFirstLoad) {
+            if (self.isFirstLoad)
                 [self firstLoadDidLoadData:data];
-            }
         }
-        
     };
     dispatchToSonicSessionQueue(opBlock);
 }
-//SonicConnection的请求会走这里
-- (void)session:(SonicSession *)session didFaild:(NSError *)error
-{
+//请求完成，且发生错误
+- (void)session:(SonicSession *)session didFaild:(NSError *)error {
     dispatch_block_t opBlock = ^{
-        
+        //把错误信息记录到SonicSession的error中
         self.error = error;
+        //标记请求已经完成
         self.isCompletion = YES;
-        
+        //请求错误但是服务器返回304表示完全缓存，也就是说服务器本次请求的数据和客户端保存的数据完全一样
         if (self.response.statusCode == 304) {
-            if (self.isFirstLoad) {
+            //是不是第一次加载
+            if (self.isFirstLoad)
                 [self firstLoadDidFinish];
-            }else{
+            else
                 [self updateDidSuccess];
-            }
-        }else{
-            if (self.isFirstLoad) {
+        }else{//请求错误且服务器没返回304，说明真的出错了
+            if (self.isFirstLoad)
                 [self firstLoadDidFaild:error];
-            }else{
+            else
                 [self updateDidFaild];
-            }
         }
     };
     dispatchToSonicSessionQueue(opBlock);
@@ -396,15 +368,13 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
 - (void)sessionDidFinish:(SonicSession *)session
 {
     dispatch_block_t opBlock = ^{
-        
+        //记录请求完成了
         self.isCompletion = YES;
-        
         if (self.isFirstLoad) {
             [self firstLoadDidFinish];
         }else{
             [self updateDidSuccess];
         }
-        
     };
     dispatchToSonicSessionQueue(opBlock);
 }
@@ -420,77 +390,71 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
 {
     [self dispatchProtocolAction:SonicURLProtocolActionLoadData param:data];
 }
-
-- (void)firstLoadDidFaild:(NSError *)error
-{
+//第一次加载请求，并且失败了
+- (void)firstLoadDidFaild:(NSError *)error {
+    //传给SonicURLProtocol
     [self dispatchProtocolAction:SonicURLProtocolActionDidFaild param:error];
-    
+    //如果self.completionCallback有值，就挨个回调
     [self checkAutoCompletionAction];
 }
-
+//第一次加载请求完成，且没有错误
 - (void)firstLoadDidFinish {
+    //通知SonicURLProtocol请求完成
     [self dispatchProtocolAction:SonicURLProtocolActionDidFinish param:nil];
     if (![self isCompletionWithOutError]) {
         return;
     }
-    
+    //服务器返回状态
     switch (self.response.statusCode) {
-        case 200:
-        {
+        //如果本地缓存内容和服务器内容模版无变化，但是动态数据有变化
+        case 200: {
+            //如果服务器设置了客户端的行为，也就是有cache-offline字段，这个
+            //服务器一般都有设置，并且值为true
             if ([self isSonicResponse]) {
-                
+                //获取服务器对于该客户端指派的行为
+                //true:缓存到磁盘并展示返回内容
+                //false:展示返回内容，无需缓存到磁盘
+                //store:缓存到磁盘，如果已经加载缓存，则下次加载，否则展示返回内容
+                //http:容灾字段，如果http表示终端六个小时之内不会采用sonic请求该URL
                 NSString *policy = [self responseHeaderValueByIgnoreCaseKey:SonicHeaderKeyCacheOffline];
-
+                //把服务器返回的数据存在cacheFileData中，后面会进行操作
                 self.cacheFileData = self.responseData;
-                //如果服务器设置了客户端暂时不能访问服务器
+                //如果值为http，表示终端六个小时之内不会采用sonic请求该URL
                 if ([policy isEqualToString:SonicHeaderValueCacheOfflineDisable]) {
-                    
+                    //这时候就需要把这些配置写入文件了
                     [[SonicCache shareCache] saveServerDisabeSonicTimeNow:self.sessionID];
-                    
                     self.isDataUpdated = YES;
-                    
                     break;
                 }
-                
+                //如果值为true、false、store，表示需要缓存到磁盘
                 if ([policy isEqualToString:SonicHeaderValueCacheOfflineStoreRefresh] || [policy isEqualToString:SonicHeaderValueCacheOfflineStore] || [policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) {
-                    
+                    //把本次请求的内容分html、data、cfg、template存放到本地缓存目录
                     SonicCacheItem *cacheItem = [[SonicCache shareCache] saveFirstWithHtmlData:self.responseData withResponseHeaders:self.response.allHeaderFields withUrl:self.url];
-                    
                     if (cacheItem) {
-                        
                         self.localRefreshTime = cacheItem.lastRefreshTime;
                         self.sonicStatusCode = SonicStatusCodeFirstLoad;
                         self.sonicStatusFinalCode = SonicStatusCodeFirstLoad;
                     }
-                    
-                    if ([policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) {
+                    //如果值为false，需要删除本地缓存
+                    if ([policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) 
                         [[SonicCache shareCache] removeCacheBySessionID:self.sessionID];
-                    }
-                    //去掉服务器对客户端的访问限制
+                    //去掉服务器对客户端的访问限制，万一之前设置了，现在没设置，就可以在这里删除
                     [[SonicCache shareCache] removeServerDisableSonic:self.sessionID];
                 }
-
             }else{
-                
                 self.cacheFileData = self.responseData;
-                
             }
-            
+            //设置数据已经更新到本地标志
             self.isDataUpdated = YES;
         }
             break;
-        case 503:
-        {
+        case 503://要求客户端
             [self webViewRequireloadNormalRequest];
-        }
             break;
         default:
-        {
-            
-        }
             break;
     }
-    
+    //如果设置有completionCallback，挨个回调
     [self checkAutoCompletionAction];
 }
 
@@ -524,20 +488,24 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
 - (void)preloadRequestActionsWithProtocolCallBack:(SonicURLProtocolCallBack)protocolCallBack {
     dispatch_block_t opBlock = ^{
         self.protocolCallBack = protocolCallBack;
-        //如果不是第一次加载，直接用本地缓存的文件返回数据
+        //如果不是第一次请求该url，是不是第一次是根据本地是否有该url缓存文件判断的
+        //或者模版更新sonic让webView重新loadRequest或者如果当前数据请求Sonic已经完成了（因为self.isDataUpdated只会在请求完成且没有错误才被设置），意思就是说我在webView在调用loadRequest前Sonic就已经获取完了整个请求数据
         if (self.isDataUpdated || !self.isFirstLoad) {
-            if (protocolCallBack) {
+            //如果protocolCallBack不为空
+            if (protocolCallBack)
+                //直接就可以告诉SonicURLProtocol请求完成并返回数据，展示界面
                 [self dispatchProtocolActions:[self cacheFileActions]];
-            }
-            if (self.isDataUpdated) {
+            //如果模版更新sonic让webView重新loadRequest或者请求已经完成了，设置sonicStatus的状态为完全缓存;如果Sonic请求完数据会直接存到本地的，状态说是完全缓存也是理所当然的
+            if (self.isDataUpdated)
                 self.sonicStatusFinalCode = SonicStatusCodeAllCached;
-            }
         } else {
-            if (self.isFirstLoad) {
+            //如果是第一次加载数据且Sonic请求还没有完成或者请求出错了，就把Sonic已经完成的阶段回调给SonicURLProtocol，self.isCompletion只会在请求发生错误或者请求完成时设置
+            //还没有完成的阶段，后面会陆续回调给SonicURLProtocol
+            if (self.isFirstLoad)
                 [self dispatchProtocolActions:[self preloadRequestActions]];
-            }
         }
     };
+    //把block丢给SonicSessionQueue，先后顺序执行
     dispatchToSonicSessionQueue(opBlock);
 }
 
@@ -572,11 +540,9 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
     
     return actionItems;
 }
-
-- (NSArray *)cacheFileActions
-{
+//得到缓存文件的动作
+- (NSArray *)cacheFileActions {
     NSMutableArray *actionItems = [NSMutableArray array];
-    
     NSHTTPURLResponse *response = nil;
     if (self.response && [self isCompletionWithOutError] && self.isDataUpdated) {
         response = self.response;
@@ -584,9 +550,7 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
         NSDictionary *respHeader = self.cacheResponseHeaders;
         response = [[[NSHTTPURLResponse alloc] initWithURL:[NSURL URLWithString:self.url] statusCode:200 HTTPVersion:@"1.1" headerFields:respHeader]autorelease];
     }
-    
     NSMutableData *cacheData = [[self.cacheFileData mutableCopy] autorelease];
-    
     NSDictionary *respItem = [self protocolActionItem:SonicURLProtocolActionRecvResponse param:response];
     NSDictionary *dataItem = [self protocolActionItem:SonicURLProtocolActionLoadData param:cacheData];
     NSDictionary *finishItem = [self protocolActionItem:SonicURLProtocolActionDidFinish param:nil];
@@ -650,127 +614,113 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
 }
 
 #pragma mark - 数据更新
-
-- (void)updateDidSuccess
-{
-    if (![self isCompletionWithOutError]) {
+- (void)updateDidSuccess {
+    if (![self isCompletionWithOutError])
         return;
-    }
-    
     switch (self.response.statusCode) {
-        case 304:
-        {
+            //服务器返回304表示完全缓存
+        case 304: {
+            //记录下来 就可以直接返回了，因为完全缓存客户端并不需要做什么
             self.sonicStatusCode = SonicStatusCodeAllCached;
             self.sonicStatusFinalCode = SonicStatusCodeAllCached;
         }
             break;
-        case 200:
-        {
-            if (![self isSonicResponse]) {
+        //200表示模版有更新、或者模版未更新但动态数据有更新
+        case 200: {
+            //如果服务器响应中没有设置cache-offline，直接返回
+            if (![self isSonicResponse])
                 break;
-            }
-            
+            //如果是模版更新
             if ([self isTemplateChange]) {
-                
                 self.cacheFileData = self.responseData;
-                
                 [self dealWithTemplateChange];
-                
-            }else{
-                
+            }else{//如果是模版未变化但动态数据更新
                 [self dealWithDataUpdate];
             }
-            
+            //获取服务器对于该客户端指派的行为
+            //true:缓存到磁盘并展示返回内容
+            //false:展示返回内容，无需缓存到磁盘
+            //store:缓存到磁盘，如果已经加载缓存，则下次加载，否则展示返回内容
+            //http:容灾字段，如果http表示终端六个小时之内不会采用sonic请求该URL
             NSString *policy = [self responseHeaderValueByIgnoreCaseKey:SonicHeaderKeyCacheOffline];
-
+            //store true false需要删除限制
             if ([policy isEqualToString:SonicHeaderValueCacheOfflineStore] || [policy isEqualToString:SonicHeaderValueCacheOfflineStoreRefresh] || [policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) {
-                
+                //去掉服务器对客户端的访问限制，万一之前设置了，现在没设置，就可以在这里删除
                 [[SonicCache shareCache] removeServerDisableSonic:self.sessionID];
             }
-            
-            if ([policy isEqualToString:SonicHeaderValueCacheOfflineRefresh] || [policy isEqualToString:SonicHeaderValueCacheOfflineDisable]) {
-                
-                if ([policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) {
-                    
-                    [[SonicCache shareCache]removeCacheBySessionID:self.sessionID];
-                }
-                
-                if ([policy isEqualToString:SonicHeaderValueCacheOfflineDisable]) {
-                    [[SonicCache shareCache] saveServerDisabeSonicTimeNow:self.sessionID];
-                }
-            }
-            
+            //false 删除该sessionID的内存缓存以及本地缓存
+            if ([policy isEqualToString:SonicHeaderValueCacheOfflineRefresh])
+                [[SonicCache shareCache] removeCacheBySessionID:self.sessionID];
+            //http 需要保存限制
+            if ([policy isEqualToString:SonicHeaderValueCacheOfflineDisable])
+                [[SonicCache shareCache] saveServerDisabeSonicTimeNow:self.sessionID];
         }
             break;
         default:
-        {
-            
-        }
             break;
     }
-    
-    //use the call back to tell web page which mode used
+    //用callBack告诉网页数据变化了
+    //如果有设置[[SonicClient sharedClient] sonicUpdateDiffDataByWebDelegate:self completion:^(NSDictionary *result) {...}会自动触发
     if (self.webviewCallBack) {
         NSDictionary *resultDict = [self sonicDiffResult];
-        if (resultDict) {
+        if (resultDict) 
             self.webviewCallBack(resultDict);
-        }
     }
-    
     [self checkAutoCompletionAction];
 }
-
-- (void)dealWithTemplateChange
-{
+//如果是模版更新
+- (void)dealWithTemplateChange{
+    //重新把响应写入到本地缓存文件
     SonicCacheItem *cacheItem = [[SonicCache shareCache] saveFirstWithHtmlData:self.responseData withResponseHeaders:self.response.allHeaderFields withUrl:self.url];
-    
+    //如果写入成功，给当前会话设置一些值
     if (cacheItem) {
-        
         self.sonicStatusCode = SonicStatusCodeTemplateUpdate;
         self.sonicStatusFinalCode = SonicStatusCodeTemplateUpdate;
         self.localRefreshTime = cacheItem.lastRefreshTime;
         self.cacheFileData = self.responseData;
         self.cacheResponseHeaders = cacheItem.cacheResponseHeaders;
-        
+        //标记数据已经更新到本地
         self.isDataUpdated = YES;
-        
+        //因为不是第一次加载数据，SonicClient会直接把缓存内容丢给SonicURLProtocol，didFinishCacheRead就是用来标记是否已经丢给了SonicURLProtocol
+        //这个if一般都是不执行的
         if (!self.didFinishCacheRead) {
             return;
         }
-        
         dispatchToMain(^{
-            
+            //获取服务器对于该客户端指派的行为
+            //true:缓存到磁盘并展示返回内容
+            //false:展示返回内容，无需缓存到磁盘
+            //store:缓存到磁盘，如果已经加载缓存，则下次加载，否则展示返回内容
+            //http:容灾字段，如果http表示终端六个小时之内不会采用sonic请求该URL
             NSString *policy = [self responseHeaderValueByIgnoreCaseKey:SonicHeaderKeyCacheOffline];
-            
+            //true false需要重新更新一下界面
+            //因为模版有更新，当前webView显示的内容是本地缓存的
             if ([policy isEqualToString:SonicHeaderValueCacheOfflineStoreRefresh] || [policy isEqualToString:SonicHeaderValueCacheOfflineRefresh]) {
                 if (self.delegate && [self.delegate respondsToSelector:@selector(session:requireWebViewReload:)]) {
                     NSURLRequest *sonicRequest = [NSURLRequest requestWithURL:[NSURL URLWithString:self.url]];
                     [self.delegate session:self requireWebViewReload:sonicWebRequest(sonicRequest)];
                 }
             }
-            
         });
     }
 }
-
-- (void)dealWithDataUpdate
-{
+//如果是动态数据变化
+- (void)dealWithDataUpdate {
+    //只需要把变化的部分写入
     SonicCacheItem *cacheItem = [[SonicCache shareCache] updateWithJsonData:self.responseData withResponseHeaders:self.response.allHeaderFields withUrl:self.url];
-    
     if (cacheItem) {
-        
         self.sonicStatusCode = SonicStatusCodeDataUpdate;
         self.sonicStatusFinalCode = SonicStatusCodeDataUpdate;
         self.localRefreshTime = cacheItem.lastRefreshTime;
         self.cacheFileData = cacheItem.htmlData;
         self.cacheResponseHeaders = cacheItem.cacheResponseHeaders;
-        
         if (_diffData) {
             [_diffData release];
             _diffData = nil;
         }
+        //把这次请求和之前本地保存的数据不同的部分保存起来
         _diffData = [cacheItem.diffData copy];
-        
+        //标志数据更新到本地完成
         self.isDataUpdated = YES;
     }
 }
@@ -781,9 +731,8 @@ void dispatchToSonicSessionQueue(dispatch_block_t block)
 }
 
 #pragma mark - 公共处理
-
-- (void)checkAutoCompletionAction
-{
+- (void)checkAutoCompletionAction {
+    //主线程依次执行回调
     dispatchToMain(^{
         if (!self.delegate) {
             if (self.completionCallback) {

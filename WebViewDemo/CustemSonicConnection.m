@@ -1,59 +1,28 @@
 //
-//  SonicConnection.m
-//  sonic
+//  CustemSonicConnection.m
+//  WebViewDemo
 //
-//  Tencent is pleased to support the open source community by making VasSonic available.
-//  Copyright (C) 2017 THL A29 Limited, a Tencent company. All rights reserved.
-//  Licensed under the BSD 3-Clause License (the "License"); you may not use this file except
-//  in compliance with the License. You may obtain a copy of the License at
-//
-//  https://opensource.org/licenses/BSD-3-Clause
-//
-//  Unless required by applicable law or agreed to in writing, software distributed under the
-//  License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
-//  either express or implied. See the License for the specific language governing permissions
-//  and limitations under the License.
-//
-//  Copyright © 2017年 Tencent. All rights reserved.
+//  Created by Mac on 2017/8/22.
+//  Copyright © 2017年 Mac. All rights reserved.
 //
 
 #if  __has_feature(objc_arc)
 #error This file must be compiled without ARC. Use -fno-objc-arc flag.
 #endif
 
-#import "SonicConnection.h"
+#import "CustemSonicConnection.h"
 
-@interface SonicConnection ()<NSURLSessionDelegate,NSURLSessionDataDelegate>
+@interface CustemSonicConnection ()<NSURLSessionDelegate,NSURLSessionDataDelegate>
 
 @property (nonatomic,retain)NSURLSession *dataSession;
 @property (nonatomic,retain)NSURLSessionDataTask *dataTask;
 
 @end
 
-@implementation SonicConnection
+@implementation CustemSonicConnection
 
 + (BOOL)canInitWithRequest:(NSURLRequest *)request {
     return YES;
-}
-- (instancetype)initWithRequest:(NSURLRequest *)aRequest {
-    if (self = [super init]) {
-        _request = [aRequest retain];
-    }
-    return self;
-}
-- (void)dealloc {
-    if (self.session) {
-        self.session = nil;
-    }
-    [self stopLoading];
-    
-    [_request release];
-    _request = nil;
-    
-    self.dataTask = nil;
-    self.dataSession = nil;
-    
-    [super dealloc];
 }
 //用系统的NSURLSessionDataTask发起请求
 - (void)startLoading {
@@ -78,10 +47,11 @@
 #pragma mark - NSURLSessionDelegate
 //请求完成
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task didCompleteWithError:(NSError *)error {
-    if (error)
+    if (error) {
         [self.session session:self.session didFaild:error];
-    else
+    }else{
         [self.session sessionDidFinish:self.session];
+    }
 }
 - (void)URLSession:(NSURLSession *)session task:(NSURLSessionTask *)task
 didReceiveChallenge:(NSURLAuthenticationChallenge *)challenge

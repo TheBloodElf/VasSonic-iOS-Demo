@@ -191,7 +191,6 @@ static bool ValidateSessionDelegate(id<SonicSessionDelegate> aWebDelegate)
             [existSession cancel];
             [self.tasks removeObjectForKey:sessionID];
         }];
-        
         [self.tasks setObject:existSession forKey:existSession.sessionID];
         [existSession start];
         [existSession release];
@@ -209,6 +208,7 @@ static bool ValidateSessionDelegate(id<SonicSessionDelegate> aWebDelegate)
 
 - (SonicSession *)sessionWithWebDelegate:(id<SonicSessionDelegate>)aWebDelegate
 {
+    //检测aWebDelegate是否实现了SonicSessionDelegate协议
     if (!ValidateSessionDelegate(aWebDelegate)) {
         return nil;
     }
