@@ -18,7 +18,6 @@
 		044394B01F1CDB9A0043BEA1 /* AppDelegate.m in Sources */ = {isa = PBXBuildFile; fileRef = 044394AF1F1CDB9A0043BEA1 /* AppDelegate.m */; };
 		044394B81F1CDB9A0043BEA1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 044394B71F1CDB9A0043BEA1 /* Assets.xcassets */; };
 		044394BB1F1CDB9A0043BEA1 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 044394B91F1CDB9A0043BEA1 /* LaunchScreen.storyboard */; };
-		049B0C611F47E0EC000EC991 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 049B0C4F1F47E0EC000EC991 /* Info.plist */; };
 		049B0C621F47E0EC000EC991 /* SonicCache.m in Sources */ = {isa = PBXBuildFile; fileRef = 049B0C521F47E0EC000EC991 /* SonicCache.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		049B0C631F47E0EC000EC991 /* SonicCacheItem.m in Sources */ = {isa = PBXBuildFile; fileRef = 049B0C541F47E0EC000EC991 /* SonicCacheItem.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
 		049B0C641F47E0EC000EC991 /* SonicClient.m in Sources */ = {isa = PBXBuildFile; fileRef = 049B0C561F47E0EC000EC991 /* SonicClient.m */; settings = {COMPILER_FLAGS = "-fno-objc-arc"; }; };
@@ -188,8 +187,6 @@
 				044394A41F1CDB9A0043BEA1 /* Sources */,
 				044394A51F1CDB9A0043BEA1 /* Frameworks */,
 				044394A61F1CDB9A0043BEA1 /* Resources */,
-				2DB16BBF75D9DA741C594D07 /* [CP] Embed Pods Frameworks */,
-				4871D04667F8F1D6460EC6C9 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -211,6 +208,7 @@
 				TargetAttributes = {
 					044394A71F1CDB9A0043BEA1 = {
 						CreatedOnToolsVersion = 8.3.1;
+						DevelopmentTeam = JG5S22U38L;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -220,6 +218,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 				Base,
 			);
@@ -243,56 +242,28 @@
 				0404A1221F43F6AE009D1B5B /* MainViewController.xib in Resources */,
 				0404A11D1F43F60A009D1B5B /* WebViewController.xib in Resources */,
 				0404A1271F43F808009D1B5B /* OldWebViewController.xib in Resources */,
-				049B0C611F47E0EC000EC991 /* Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		2DB16BBF75D9DA741C594D07 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-WebViewDemo/Pods-WebViewDemo-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		4871D04667F8F1D6460EC6C9 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-WebViewDemo/Pods-WebViewDemo-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
 		6D37EE3FF14C7D412AE50CEC /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
 			);
 			name = "[CP] Check Pods Manifest.lock";
 			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-WebViewDemo-checkManifestLockResult.txt",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_ROOT}/../Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n";
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -427,6 +398,7 @@
 			baseConfigurationReference = C105C4C1A097AADB24179597 /* Pods-WebViewDemo.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = JG5S22U38L;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
@@ -434,7 +406,7 @@
 				INFOPLIST_FILE = WebViewDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 8;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.liyong.WebViewDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.liyong.webview;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -444,6 +416,7 @@
 			baseConfigurationReference = 59CDA5D4DF005540EDCC36C0 /* Pods-WebViewDemo.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				DEVELOPMENT_TEAM = JG5S22U38L;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)",
@@ -451,7 +424,7 @@
 				INFOPLIST_FILE = WebViewDemo/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 8;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				PRODUCT_BUNDLE_IDENTIFIER = com.liyong.WebViewDemo;
+				PRODUCT_BUNDLE_IDENTIFIER = com.liyong.webview;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
